@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HRIS System - Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: radial-gradient(1200px circle at 10% 10%, rgba(52,152,219,0.35), transparent 45%),
+                  radial-gradient(900px circle at 90% 20%, rgba(102,126,234,0.35), transparent 40%),
+                  radial-gradient(900px circle at 40% 90%, rgba(118,75,162,0.35), transparent 45%),
+                  linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 20% 10%, rgba(255,255,255,0.35) 0 2px, transparent 3px),
+        radial-gradient(circle at 70% 30%, rgba(255,255,255,0.25) 0 2px, transparent 3px),
+        radial-gradient(circle at 40% 80%, rgba(255,255,255,0.20) 0 2px, transparent 3px);
+      background-size: 420px 420px;
+      opacity: 0.25;
+      pointer-events: none;
+      animation: drift 18s linear infinite;
+      z-index: -1;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/></filter><rect width="160" height="160" filter="url(%23n)" opacity="0.22"/></svg>');
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    @keyframes drift {
+      0% { transform: translate3d(0,0,0); }
+      50% { transform: translate3d(-40px, 25px, 0); }
+      100% { transform: translate3d(0,0,0); }
+    }
+
+    .navbar-custom {
+      background: linear-gradient(90deg, rgba(16,24,40,0.82) 0%, rgba(52,73,94,0.78) 100%);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      border-bottom: 3px solid rgba(52,152,219,0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .brand-logo { font-size: 24px; font-weight: bold; color: #3498db; margin-right: 10px; }
+    .container-fluid { max-width: 1400px; }
+
+    .sidebar {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+    }
+
+    .main-content {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.2);
+    }
+
+    .stat-card:hover { transform: translateY(-5px); box-shadow: 0 12px 24px rgba(102, 126, 234, 0.4); }
+    .stat-number { font-size: 36px; font-weight: bold; margin-bottom: 10px; }
+    .stat-label { font-size: 14px; opacity: 0.9; }
+
+    .nav-link-custom {
+      color: white !important;
+      padding: 12px 16px !important;
+      margin: 8px 0 !important;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .nav-link-custom:hover, .nav-link-custom.active {
+      background: #3498db;
+      transform: translateX(5px);
+    }
+
+    .btn-custom {
+      background: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
+      border: none;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      font-weight: 600;
+    }
+
+    .btn-custom:hover { background: linear-gradient(90deg, #2980b9 0%, #1a5276 100%); transform: scale(1.02); color: white; }
+    .btn-success-custom { background: linear-gradient(90deg, #27ae60 0%, #1e8449 100%); }
+    .btn-success-custom:hover { background: linear-gradient(90deg, #1e8449 0%, #145a32 100%); }
+    .btn-warning-custom { background: linear-gradient(90deg, #f39c12 0%, #d68910 100%); }
+    .btn-warning-custom:hover { background: linear-gradient(90deg, #d68910 0%, #a04000 100%); }
+
+    .table-custom { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    .table-custom th {
+      background: linear-gradient(90deg, #2C3E50 0%, #34495e 100%);
+      color: white;
+      padding: 15px;
+      text-align: left;
+      font-weight: 600;
+      border: none;
+    }
+    .table-custom td { padding: 15px; border-bottom: 1px solid #ecf0f1; }
+    .table-custom tr:hover { background: #f8f9fa; }
+
+    .badge-custom { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-success { background: #d4edda; color: #155724; }
+    .badge-pending { background: #fff3cd; color: #856404; }
+    .badge-danger { background: #f8d7da; color: #721c24; }
+
+    .modal-custom {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      animation: fadeIn 0.3s ease;
+    }
+
+    .modal-custom.show { display: flex; align-items: center; justify-content: center; }
+
+    .modal-content-custom {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideIn { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+    .form-group-custom { margin-bottom: 20px; }
+    .form-group-custom label { display: block; margin-bottom: 8px; font-weight: 600; color: #2C3E50; font-size: 14px; }
+    .form-group-custom input,
+    .form-group-custom select,
+    .form-group-custom textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ecf0f1;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.3s ease;
+    }
+    .form-group-custom input:focus,
+    .form-group-custom select:focus,
+    .form-group-custom textarea:focus {
+      outline: none;
+      border-color: #3498db;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .loader { display: none; text-align: center; padding: 20px; }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px; height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .empty-state { text-align: center; padding: 40px; color: #95a5a6; }
+    .empty-state i { font-size: 48px; margin-bottom: 20px; opacity: 0.5; }
+
+    .title-section { margin-bottom: 30px; border-bottom: 3px solid #3498db; padding-bottom: 15px; }
+    .title-section h2 { color: #2C3E50; font-weight: bold; margin-bottom: 5px; }
+    .title-section p { color: #7f8c8d; font-size: 14px; }
+
+    @media (max-width: 768px) {
+      .sidebar { position: static; margin-bottom: 20px; }
+      .stat-card { margin-bottom: 15px; }
+      .main-content { padding: 20px; }
+      .table-custom { font-size: 12px; }
+      .table-custom th, .table-custom td { padding: 10px; }
+    }
+
+    .alert-message {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+      animation: slideDown 0.3s ease;
+    }
+    .alert-success { background: #d4edda; color: #155724; }
+    .alert-error { background: #f8d7da; color: #721c24; }
+
+    @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .alert-message.show { display: block; }
+
+    .modal-header-custom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #ecf0f1;
+      padding-bottom: 15px;
+    }
+    .modal-header-custom h3 { color: #2C3E50; margin: 0; }
+    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #7f8c8d; }
+    .close-btn:hover { color: #2C3E50; }
+
+    /* Config Panel */
+    #configPanel {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    #configPanel h5 { color: #856404; margin-bottom: 15px; }
+    #configPanel input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-custom">
+    <div class="container-fluid">
+      <span class="brand-logo">
+        <i class="fas fa-briefcase"></i> HRIS System
+      </span>
+      <span class="navbar-text text-white" id="dateTime"></span>
+    </div>
+  </nav>
+
+  <div class="container-fluid mt-4">
+
+    <!-- Supabase Config Panel (tampil jika belum dikonfigurasi) -->
+    <div id="configPanel" style="display:none;">
+      <h5><i class="fas fa-database"></i> Konfigurasi Supabase</h5>
+      <p style="font-size:13px; color:#856404; margin-bottom:10px;">
+        Masukkan URL dan Anon Key dari project Supabase Anda. 
+        Temukan di: <strong>Supabase Dashboard → Settings → API</strong>
+      </p>
+      <input type="text" id="cfgUrl" placeholder="Supabase URL (contoh: https://xxxx.supabase.co)">
+      <input type="text" id="cfgKey" placeholder="Supabase Anon Key">
+      <button class="btn-custom" onclick="saveConfig()">
+        <i class="fas fa-save"></i> Simpan & Hubungkan
+      </button>
+    </div>
+
+    <div class="row">
+      <!-- Sidebar Navigation -->
+      <div class="col-md-3">
+        <div class="sidebar">
+          <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #ecf0f1;">
+            <h5 style="color: #2C3E50; font-weight: bold;">Menu Utama</h5>
+          </div>
+
+          <div class="nav-link-custom active" onclick="switchTab('dashboard', event)">
+            <i class="fas fa-chart-line"></i> Dashboard
+          </div>
+          <div class="nav-link-custom" onclick="switchTab('karyawan', event)">
+            <i class="fas fa-users"></i> Karyawan
+          </div>
+          <div class="nav-link-custom" onclick="switchTab('kehadiran', event)">
+            <i class="fas fa-clock"></i> Kehadiran
+          </div>
+          <div class="nav-link-custom" onclick="switchTab('cuti', event)">
+            <i class="fas fa-calendar-check"></i> Pengajuan Cuti
+          </div>
+
+          <hr style="margin: 20px 0;">
+
+          <button class="btn-custom" onclick="openModal('formKaryawan')" style="width: 100%; margin-bottom: 10px;">
+            <i class="fas fa-plus"></i> Tambah Karyawan
+          </button>
+          <button class="btn-custom" onclick="openModal('formKehadiran')" style="width: 100%; margin-bottom: 10px;">
+            <i class="fas fa-plus"></i> Catat Kehadiran
+          </button>
+          <button class="btn-custom" onclick="openModal('formCuti')" style="width: 100%;">
+            <i class="fas fa-plus"></i> Ajukan Cuti
+          </button>
+
+          <hr style="margin: 20px 0;">
+          <button class="btn-custom" onclick="showConfigPanel()" style="width: 100%; background: linear-gradient(90deg, #f39c12, #d68910);">
+            <i class="fas fa-cog"></i> Konfigurasi DB
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="col-md-9">
+        <div class="main-content">
+
+          <!-- Alert Message -->
+          <div class="alert-message" id="alertMessage">
+            <i class="fas fa-check-circle"></i> <span id="alertText"></span>
+          </div>
+
+          <!-- Dashboard Tab -->
+          <div id="dashboard" class="tab-content active">
+            <div class="title-section">
+              <h2><i class="fas fa-chart-line"></i> Dashboard</h2>
+              <p>Ringkasan data HR Perusahaan Anda</p>
+            </div>
+
+            <div class="row" id="statsContainer">
+              <div class="col-md-4">
+                <div class="stat-card">
+                  <div class="stat-number" id="totalKaryawan">-</div>
+                  <div class="stat-label">Total Karyawan</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="stat-card">
+                  <div class="stat-number" id="karyawanAktif">-</div>
+                  <div class="stat-label">Karyawan Aktif</div>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="stat-card">
+                  <div class="stat-number" id="pengajuanCutiPending">-</div>
+                  <div class="stat-label">Cuti Menunggu Persetujuan</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="title-section" style="margin-top: 30px;">
+              <h3>Aktivitas Terbaru</h3>
+            </div>
+            <div id="recentActivityContainer">
+              <div class="empty-state">
+                <i class="fas fa-inbox"></i>
+                <p>Memuat data...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Karyawan Tab -->
+          <div id="karyawan" class="tab-content">
+            <div class="title-section">
+              <h2><i class="fas fa-users"></i> Data Karyawan</h2>
+              <p>Kelola data profil karyawan perusahaan</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+              <input type="text" id="searchKaryawan" placeholder="Cari nama, email, atau posisi..."
+                     style="width: 100%; padding: 12px; border: 2px solid #ecf0f1; border-radius: 8px;"
+                     oninput="filterKaryawan()">
+            </div>
+            <div id="karyawanTableContainer">
+              <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Memuat data...</p></div>
+            </div>
+          </div>
+
+          <!-- Kehadiran Tab -->
+          <div id="kehadiran" class="tab-content">
+            <div class="title-section">
+              <h2><i class="fas fa-clock"></i> Data Kehadiran</h2>
+              <p>Pantau kehadiran karyawan</p>
+            </div>
+            <div class="row" style="margin-bottom: 20px;">
+              <div class="col-md-6">
+                <label>Dari Tanggal:</label>
+                <input type="date" id="kehadiranStartDate" style="padding: 10px; border: 2px solid #ecf0f1; border-radius: 8px; width: 100%;">
+              </div>
+              <div class="col-md-6">
+                <label>Sampai Tanggal:</label>
+                <input type="date" id="kehadiranEndDate" style="padding: 10px; border: 2px solid #ecf0f1; border-radius: 8px; width: 100%;">
+              </div>
+            </div>
+            <button class="btn-custom" onclick="loadKehadiran()" style="margin-bottom: 20px;">
+              <i class="fas fa-search"></i> Tampilkan Data
+            </button>
+            <div id="kehadiranTableContainer">
+              <div class="empty-state">
+                <i class="fas fa-folder-open"></i>
+                <p>Pilih rentang tanggal untuk melihat data</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cuti Tab -->
+          <div id="cuti" class="tab-content">
+            <div class="title-section">
+              <h2><i class="fas fa-calendar-check"></i> Pengajuan Cuti</h2>
+              <p>Kelola pengajuan cuti karyawan</p>
+            </div>
+            <div style="margin-bottom: 20px;">
+              <select id="filterStatusCuti" style="padding: 10px; border: 2px solid #ecf0f1; border-radius: 8px; width: 100%;" onchange="loadCuti()">
+                <option value="">Semua Status</option>
+                <option value="Menunggu Persetujuan">Menunggu Persetujuan</option>
+                <option value="Disetujui">Disetujui</option>
+                <option value="Ditolak">Ditolak</option>
+              </select>
+            </div>
+            <div id="cutiTableContainer">
+              <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Memuat data...</p></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Form Karyawan -->
+  <div id="formKaryawan" class="modal-custom">
+    <div class="modal-content-custom">
+      <div class="modal-header-custom">
+        <h3><i class="fas fa-user-plus"></i> Tambah Karyawan Baru</h3>
+        <button class="close-btn" onclick="closeModal('formKaryawan')">&times;</button>
+      </div>
+      <div class="form-group-custom">
+        <label>Nama Lengkap *</label>
+        <input type="text" id="inputNama" placeholder="Masukkan nama lengkap">
+      </div>
+      <div class="form-group-custom">
+        <label>Email *</label>
+        <input type="email" id="inputEmail" placeholder="Masukkan email">
+      </div>
+      <div class="form-group-custom">
+        <label>Posisi *</label>
+        <input type="text" id="inputPosisi" placeholder="Masukkan posisi">
+      </div>
+      <div class="form-group-custom">
+        <label>Departemen *</label>
+        <select id="inputDepartemen">
+          <option value="">Pilih Departemen</option>
+          <option value="IT">IT</option>
+          <option value="HR">HR</option>
+          <option value="Finance">Finance</option>
+          <option value="Marketing">Marketing</option>
+          <option value="Sales">Sales</option>
+          <option value="Operations">Operations</option>
+        </select>
+      </div>
+      <div class="form-group-custom">
+        <label>Tanggal Masuk *</label>
+        <input type="date" id="inputTanggalMasuk">
+      </div>
+      <div class="form-group-custom">
+        <label>No. Kontak</label>
+        <input type="tel" id="inputNoKontak" placeholder="Masukkan nomor kontak">
+      </div>
+      <div class="form-group-custom">
+        <label>Alamat</label>
+        <textarea id="inputAlamat" placeholder="Masukkan alamat" rows="3"></textarea>
+      </div>
+      <button class="btn-success-custom btn-custom" onclick="submitFormKaryawan()" style="width: 100%; margin-top: 20px;">
+        <i class="fas fa-save"></i> Simpan Karyawan
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal Form Kehadiran -->
+  <div id="formKehadiran" class="modal-custom">
+    <div class="modal-content-custom">
+      <div class="modal-header-custom">
+        <h3><i class="fas fa-clock"></i> Catat Kehadiran</h3>
+        <button class="close-btn" onclick="closeModal('formKehadiran')">&times;</button>
+      </div>
+      <div class="form-group-custom">
+        <label>Pilih Karyawan *</label>
+        <select id="inputIdKaryawanKehadiran">
+          <option value="">Pilih Karyawan</option>
+        </select>
+      </div>
+      <div class="form-group-custom">
+        <label>Tanggal *</label>
+        <input type="date" id="inputTanggalKehadiran">
+      </div>
+      <div class="form-group-custom">
+        <label>Jam Masuk *</label>
+        <input type="time" id="inputJamMasuk">
+      </div>
+      <div class="form-group-custom">
+        <label>Jam Keluar</label>
+        <input type="time" id="inputJamKeluar">
+      </div>
+      <div class="form-group-custom">
+        <label>Status *</label>
+        <select id="inputStatusKehadiran">
+          <option value="">Pilih Status</option>
+          <option value="Hadir">Hadir</option>
+          <option value="Sakit">Sakit</option>
+          <option value="Izin">Izin</option>
+          <option value="Tidak Hadir">Tidak Hadir</option>
+        </select>
+      </div>
+      <button class="btn-success-custom btn-custom" onclick="submitFormKehadiran()" style="width: 100%; margin-top: 20px;">
+        <i class="fas fa-save"></i> Simpan Kehadiran
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal Form Cuti -->
+  <div id="formCuti" class="modal-custom">
+    <div class="modal-content-custom">
+      <div class="modal-header-custom">
+        <h3><i class="fas fa-calendar-check"></i> Ajukan Pengajuan Cuti</h3>
+        <button class="close-btn" onclick="closeModal('formCuti')">&times;</button>
+      </div>
+      <div class="form-group-custom">
+        <label>Pilih Karyawan *</label>
+        <select id="inputIdKaryawanCuti">
+          <option value="">Pilih Karyawan</option>
+        </select>
+      </div>
+      <div class="form-group-custom">
+        <label>Jenis Cuti *</label>
+        <select id="inputJenisCuti">
+          <option value="">Pilih Jenis Cuti</option>
+          <option value="Cuti Tahunan">Cuti Tahunan</option>
+          <option value="Cuti Sakit">Cuti Sakit</option>
+          <option value="Cuti Bersama">Cuti Bersama</option>
+          <option value="Cuti Khusus">Cuti Khusus</option>
+        </select>
+      </div>
+      <div class="form-group-custom">
+        <label>Tanggal Mulai *</label>
+        <input type="date" id="inputTanggalMuliCuti">
+      </div>
+      <div class="form-group-custom">
+        <label>Tanggal Akhir *</label>
+        <input type="date" id="inputTanggalAkhirCuti">
+      </div>
+      <div class="form-group-custom">
+        <label>Alasan *</label>
+        <textarea id="inputAlasanCuti" placeholder="Masukkan alasan pengajuan cuti" rows="3"></textarea>
+      </div>
+      <button class="btn-success-custom btn-custom" onclick="submitFormCuti()" style="width: 100%; margin-top: 20px;">
+        <i class="fas fa-paper-plane"></i> Ajukan Cuti
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    //  KONFIGURASI SUPABASE
+    //  Ganti nilai di bawah dengan URL dan Anon Key Anda
+    //  atau gunakan tombol "Konfigurasi DB" di sidebar
+    // ============================================================
+// ✅ Variabel terpisah — mudah diganti
+const SUPABASE_URL      = 'https://bqnuuscqzifpbrpnerqi.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxbnV1c2NxemlmcGJycG5lcnFpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNzQ2NzEsImV4cCI6MjA5NjY1MDY3MX0.khAHKnhAVBt4jrcL_v6U54uAKv0KOSyh6CDih3btx1o';
+
+// SUPABASE_CONFIG tetap ada, otomatis mengambil dari variabel di atas
+// (atau dari localStorage jika pernah diubah via panel konfigurasi)
+const SUPABASE_CONFIG = {
+  url: localStorage.getItem('sb_url') || SUPABASE_URL,
+  key: localStorage.getItem('sb_key') || SUPABASE_ANON_KEY
+};
+
+    function initSupabase() {
+      if (!SUPABASE_CONFIG.url.startsWith('https://') || SUPABASE_CONFIG.key === 'GANTI_DENGAN_SUPABASE_ANON_KEY') {
+        document.getElementById('configPanel').style.display = 'block';
+        showAlert('Silakan konfigurasi koneksi Supabase terlebih dahulu.', 'error');
+        return false;
+      }
+      supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
+      return true;
+    }
+
+    function saveConfig() {
+      const url = document.getElementById('cfgUrl').value.trim();
+      const key = document.getElementById('cfgKey').value.trim();
+      if (!url || !key) { alert('URL dan Key wajib diisi!'); return; }
+      localStorage.setItem('sb_url', url);
+      localStorage.setItem('sb_key', key);
+      SUPABASE_CONFIG.url = url;
+      SUPABASE_CONFIG.key = key;
+      supabase = window.supabase.createClient(url, key);
+      document.getElementById('configPanel').style.display = 'none';
+      showAlert('Konfigurasi berhasil disimpan! Memuat data...', 'success');
+      initApp();
+    }
+
+    function showConfigPanel() {
+      const panel = document.getElementById('configPanel');
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      if (panel.style.display === 'block') {
+        document.getElementById('cfgUrl').value = localStorage.getItem('sb_url') || '';
+        document.getElementById('cfgKey').value = localStorage.getItem('sb_key') || '';
+      }
+    }
+
+    // ============================================================
+    //  INISIALISASI APP
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', function () {
+      updateDateTime();
+      setInterval(updateDateTime, 1000);
+      setDefaultDates();
+      setTodayDate();
+
+      if (initSupabase()) {
+        initApp();
+        setInterval(loadDashboard, 30000);
+      }
+    });
+
+    function initApp() {
+      loadDashboard();
+      loadKaryawanList();
+    }
+
+    // ============================================================
+    //  HELPER
+    // ============================================================
+    function updateDateTime() {
+      const now = new Date();
+      const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+      document.getElementById('dateTime').textContent = now.toLocaleDateString('id-ID', options);
+    }
+
+    function setDefaultDates() {
+      const today = new Date();
+      const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+      document.getElementById('kehadiranStartDate').valueAsDate = firstDay;
+      document.getElementById('kehadiranEndDate').valueAsDate = today;
+    }
+
+    function setTodayDate() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('inputTanggalKehadiran').value = today;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function showAlert(message, type = 'success') {
+      const el = document.getElementById('alertMessage');
+      const textEl = document.getElementById('alertText');
+      el.className = 'alert-message show ' + (type === 'success' ? 'alert-success' : 'alert-error');
+      textEl.textContent = message;
+      setTimeout(() => el.classList.remove('show'), 4000);
+    }
+
+    function switchTab(tabName, event) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-link-custom').forEach(l => l.classList.remove('active'));
+      document.getElementById(tabName).classList.add('active');
+      if (event) event.currentTarget.classList.add('active');
+
+      if (tabName === 'karyawan') loadKaryawan();
+      else if (tabName === 'cuti') loadCuti();
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    window.onclick = function (e) {
+      if (e.target.classList.contains('modal-custom')) e.target.classList.remove('show');
+    };
+
+    // ============================================================
+    //  DASHBOARD
+    // ============================================================
+    async function loadDashboard() {
+      if (!supabase) return;
+      try {
+        const { count: total } = await supabase.from('karyawan').select('*', { count: 'exact', head: true });
+        const { count: aktif } = await supabase.from('karyawan').select('*', { count: 'exact', head: true }).eq('status', 'Aktif');
+        const { count: pending } = await supabase.from('cuti').select('*', { count: 'exact', head: true }).eq('status', 'Menunggu Persetujuan');
+
+        document.getElementById('totalKaryawan').textContent = total ?? 0;
+        document.getElementById('karyawanAktif').textContent = aktif ?? 0;
+        document.getElementById('pengajuanCutiPending').textContent = pending ?? 0;
+
+        // Aktivitas terbaru: 5 kehadiran terakhir
+        const { data: recent } = await supabase
+          .from('kehadiran')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        let html = '';
+        if (!recent || recent.length === 0) {
+          html = '<div class="empty-state"><i class="fas fa-inbox"></i><p>Tidak ada aktivitas terbaru</p></div>';
+        } else {
+          html = '<table class="table-custom"><thead><tr><th>Karyawan</th><th>Tanggal</th><th>Jam Masuk</th><th>Status</th></tr></thead><tbody>';
+          recent.forEach(r => {
+            const badge = r.status === 'Hadir' ? 'badge-success' : r.status === 'Sakit' ? 'badge-pending' : 'badge-danger';
+            html += `<tr><td>${r.nama}</td><td>${formatDate(r.tanggal)}</td><td>${r.jam_masuk || '-'}</td><td><span class="badge-custom ${badge}">${r.status}</span></td></tr>`;
+          });
+          html += '</tbody></table>';
+        }
+        document.getElementById('recentActivityContainer').innerHTML = html;
+      } catch (err) {
+        console.error('Dashboard error:', err);
+        showAlert('Gagal memuat dashboard: ' + err.message, 'error');
+      }
+    }
+
+    // ============================================================
+    //  KARYAWAN
+    // ============================================================
+    async function loadKaryawanList() {
+      if (!supabase) return;
+      const { data, error } = await supabase.from('karyawan').select('id, nama, posisi, email').eq('status', 'Aktif').order('nama');
+      if (error) { console.error(error); return; }
+
+      const selKehadiran = document.getElementById('inputIdKaryawanKehadiran');
+      const selCuti = document.getElementById('inputIdKaryawanCuti');
+      selKehadiran.innerHTML = '<option value="">Pilih Karyawan</option>';
+      selCuti.innerHTML = '<option value="">Pilih Karyawan</option>';
+
+      (data || []).forEach(k => {
+        selKehadiran.innerHTML += `<option value="${k.id}|${k.nama}">${k.nama} (${k.posisi})</option>`;
+        selCuti.innerHTML += `<option value="${k.id}|${k.nama}|${k.email}">${k.nama} (${k.posisi})</option>`;
+      });
+    }
+
+    async function loadKaryawan() {
+      if (!supabase) return;
+      document.getElementById('karyawanTableContainer').innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Memuat...</p></div>';
+      const { data, error } = await supabase.from('karyawan').select('*').order('nama');
+      if (error) { showAlert('Gagal memuat karyawan: ' + error.message, 'error'); return; }
+
+      allKaryawanData = data || [];
+      renderKaryawanTable(allKaryawanData);
+    }
+
+    function renderKaryawanTable(data) {
+      let html = '<table class="table-custom"><thead><tr><th>ID</th><th>Nama</th><th>Email</th><th>Posisi</th><th>Departemen</th><th>Tanggal Masuk</th><th>Status</th></tr></thead><tbody>';
+      if (!data || data.length === 0) {
+        html += '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-inbox"></i><p>Belum ada data karyawan</p></div></td></tr>';
+      } else {
+        data.forEach(k => {
+          const badge = k.status === 'Aktif' ? 'badge-success' : 'badge-danger';
+          html += `<tr>
+            <td><strong>${k.id}</strong></td>
+            <td>${k.nama}</td>
+            <td>${k.email}</td>
+            <td>${k.posisi}</td>
+            <td>${k.departemen}</td>
+            <td>${formatDate(k.tanggal_masuk)}</td>
+            <td><span class="badge-custom ${badge}">${k.status}</span></td>
+          </tr>`;
+        });
+      }
+      html += '</tbody></table>';
+      document.getElementById('karyawanTableContainer').innerHTML = html;
+    }
+
+    function filterKaryawan() {
+      const q = document.getElementById('searchKaryawan').value.toLowerCase();
+      const filtered = allKaryawanData.filter(k =>
+        k.nama.toLowerCase().includes(q) ||
+        k.email.toLowerCase().includes(q) ||
+        k.posisi.toLowerCase().includes(q)
+      );
+      renderKaryawanTable(filtered);
+    }
+
+    async function submitFormKaryawan() {
+      if (!supabase) { showAlert('Supabase belum dikonfigurasi!', 'error'); return; }
+      const nama = document.getElementById('inputNama').value.trim();
+      const email = document.getElementById('inputEmail').value.trim();
+      const posisi = document.getElementById('inputPosisi').value.trim();
+      const departemen = document.getElementById('inputDepartemen').value;
+      const tanggalMasuk = document.getElementById('inputTanggalMasuk').value;
+      const noKontak = document.getElementById('inputNoKontak').value.trim();
+      const alamat = document.getElementById('inputAlamat').value.trim();
+
+      if (!nama || !email || !posisi || !departemen || !tanggalMasuk) {
+        alert('Lengkapi semua field yang wajib diisi!'); return;
+      }
+
+      const { error } = await supabase.from('karyawan').insert([{
+        nama, email, posisi, departemen,
+        tanggal_masuk: tanggalMasuk,
+        no_kontak: noKontak,
+        alamat,
+        status: 'Aktif'
+      }]);
+
+      if (error) { showAlert('Gagal menyimpan: ' + error.message, 'error'); return; }
+      showAlert('Karyawan berhasil ditambahkan!', 'success');
+      closeModal('formKaryawan');
+      resetForm(['inputNama','inputEmail','inputPosisi','inputDepartemen','inputTanggalMasuk','inputNoKontak','inputAlamat']);
+      loadKaryawan();
+      loadDashboard();
+      loadKaryawanList();
+    }
+
+    // ============================================================
+    //  KEHADIRAN
+    // ============================================================
+    async function loadKehadiran() {
+      if (!supabase) return;
+      const startDate = document.getElementById('kehadiranStartDate').value;
+      const endDate = document.getElementById('kehadiranEndDate').value;
+      if (!startDate || !endDate) { alert('Pilih rentang tanggal terlebih dahulu!'); return; }
+
+      document.getElementById('kehadiranTableContainer').innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Memuat...</p></div>';
+
+      const { data, error } = await supabase
+        .from('kehadiran')
+        .select('*')
+        .gte('tanggal', startDate)
+        .lte('tanggal', endDate)
+        .order('tanggal', { ascending: false });
+
+      if (error) { showAlert('Gagal memuat kehadiran: ' + error.message, 'error'); return; }
+
+      let html = '<table class="table-custom"><thead><tr><th>ID</th><th>Karyawan</th><th>Tanggal</th><th>Jam Masuk</th><th>Jam Keluar</th><th>Status</th><th>Keterangan</th></tr></thead><tbody>';
+      if (!data || data.length === 0) {
+        html += '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-inbox"></i><p>Tidak ada data kehadiran untuk periode ini</p></div></td></tr>';
+      } else {
+        data.forEach(k => {
+          const badge = k.status === 'Hadir' ? 'badge-success' : k.status === 'Sakit' ? 'badge-pending' : 'badge-danger';
+          html += `<tr>
+            <td>${k.id}</td>
+            <td>${k.nama}</td>
+            <td>${formatDate(k.tanggal)}</td>
+            <td>${k.jam_masuk || '-'}</td>
+            <td>${k.jam_keluar || '-'}</td>
+            <td><span class="badge-custom ${badge}">${k.status}</span></td>
+            <td>${k.keterangan || '-'}</td>
+          </tr>`;
+        });
+      }
+      html += '</tbody></table>';
+      document.getElementById('kehadiranTableContainer').innerHTML = html;
+    }
+
+    async function submitFormKehadiran() {
+      if (!supabase) { showAlert('Supabase belum dikonfigurasi!', 'error'); return; }
+      const idKaryawan = document.getElementById('inputIdKaryawanKehadiran').value;
+      const tanggal = document.getElementById('inputTanggalKehadiran').value;
+      const jamMasuk = document.getElementById('inputJamMasuk').value;
+      const jamKeluar = document.getElementById('inputJamKeluar').value;
+      const status = document.getElementById('inputStatusKehadiran').value;
+
+      if (!idKaryawan || !tanggal || !jamMasuk || !status) {
+        alert('Lengkapi semua field yang wajib diisi!'); return;
+      }
+
+      const [id, nama] = idKaryawan.split('|');
+      const { error } = await supabase.from('kehadiran').insert([{
+        id_karyawan: id,
+        nama,
+        tanggal,
+        jam_masuk: jamMasuk,
+        jam_keluar: jamKeluar || null,
+        status,
+        keterangan: ''
+      }]);
+
+      if (error) { showAlert('Gagal menyimpan kehadiran: ' + error.message, 'error'); return; }
+      showAlert('Kehadiran berhasil dicatat!', 'success');
+      closeModal('formKehadiran');
+      resetForm(['inputIdKaryawanKehadiran','inputTanggalKehadiran','inputJamMasuk','inputJamKeluar','inputStatusKehadiran']);
+    }
+
+    // ============================================================
+    //  CUTI
+    // ============================================================
+    async function loadCuti() {
+      if (!supabase) return;
+      document.getElementById('cutiTableContainer').innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Memuat...</p></div>';
+
+      let query = supabase.from('cuti').select('*').order('created_at', { ascending: false });
+      const filterStatus = document.getElementById('filterStatusCuti').value;
+      if (filterStatus) query = query.eq('status', filterStatus);
+
+      const { data, error } = await query;
+      if (error) { showAlert('Gagal memuat cuti: ' + error.message, 'error'); return; }
+
+      let html = '<table class="table-custom"><thead><tr><th>ID</th><th>Karyawan</th><th>Jenis Cuti</th><th>Tanggal</th><th>Durasi</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+      if (!data || data.length === 0) {
+        html += '<tr><td colspan="7"><div class="empty-state"><i class="fas fa-inbox"></i><p>Tidak ada pengajuan cuti</p></div></td></tr>';
+      } else {
+        data.forEach(c => {
+          const badge = c.status === 'Disetujui' ? 'badge-success' : c.status === 'Menunggu Persetujuan' ? 'badge-pending' : 'badge-danger';
+          const durasi = Math.ceil((new Date(c.tanggal_akhir) - new Date(c.tanggal_mulai)) / (1000 * 60 * 60 * 24)) + 1;
+          html += `<tr>
+            <td><strong>${c.id}</strong></td>
+            <td>${c.nama}</td>
+            <td>${c.jenis_cuti}</td>
+            <td>${formatDate(c.tanggal_mulai)} s/d ${formatDate(c.tanggal_akhir)}</td>
+            <td><strong>${durasi} hari</strong></td>
+            <td><span class="badge-custom ${badge}">${c.status}</span></td>
+            <td>
+              ${c.status === 'Menunggu Persetujuan'
+                ? `<button class="btn-custom btn-success-custom" onclick="updateStatusCuti('${c.id}','Disetujui')" style="padding:6px 12px;font-size:12px;">Setujui</button>
+                   <button class="btn-custom btn-warning-custom" onclick="tolakCuti('${c.id}')" style="padding:6px 12px;font-size:12px;margin-left:4px;">Tolak</button>`
+                : '<span style="color:#7f8c8d">-</span>'}
+            </td>
+          </tr>`;
+        });
+      }
+      html += '</tbody></table>';
+      document.getElementById('cutiTableContainer').innerHTML = html;
+    }
+
+    async function updateStatusCuti(id, status, catatan = '') {
+      const { error } = await supabase.from('cuti').update({ status, catatan_penolakan: catatan }).eq('id', id);
+      if (error) { showAlert('Gagal update status: ' + error.message, 'error'); return; }
+      showAlert(`Pengajuan cuti berhasil ${status === 'Disetujui' ? 'disetujui' : 'ditolak'}!`, 'success');
+      loadCuti();
+      loadDashboard();
+    }
+
+    function tolakCuti(id) {
+      const alasan = prompt('Masukkan alasan penolakan:');
+      if (alasan !== null) updateStatusCuti(id, 'Ditolak', alasan);
+    }
+
+    async function submitFormCuti() {
+      if (!supabase) { showAlert('Supabase belum dikonfigurasi!', 'error'); return; }
+      const idKaryawan = document.getElementById('inputIdKaryawanCuti').value;
+      const jenisCuti = document.getElementById('inputJenisCuti').value;
+      const tanggalMulai = document.getElementById('inputTanggalMuliCuti').value;
+      const tanggalAkhir = document.getElementById('inputTanggalAkhirCuti').value;
+      const alasan = document.getElementById('inputAlasanCuti').value.trim();
+
+      if (!idKaryawan || !jenisCuti || !tanggalMulai || !tanggalAkhir || !alasan) {
+        alert('Lengkapi semua field yang wajib diisi!'); return;
+      }
+
+      if (new Date(tanggalAkhir) < new Date(tanggalMulai)) {
+        alert('Tanggal akhir tidak boleh sebelum tanggal mulai!'); return;
+      }
+
+      const [id, nama, email] = idKaryawan.split('|');
+      const { error } = await supabase.from('cuti').insert([{
+        id_karyawan: id,
+        nama,
+        email: email || '',
+        jenis_cuti: jenisCuti,
+        tanggal_mulai: tanggalMulai,
+        tanggal_akhir: tanggalAkhir,
+        alasan,
+        status: 'Menunggu Persetujuan'
+      }]);
+
+      if (error) { showAlert('Gagal mengajukan cuti: ' + error.message, 'error'); return; }
+      showAlert('Pengajuan cuti berhasil dikirim!', 'success');
+      closeModal('formCuti');
+      resetForm(['inputIdKaryawanCuti','inputJenisCuti','inputTanggalMuliCuti','inputTanggalAkhirCuti','inputAlasanCuti']);
+      loadCuti();
+      loadDashboard();
+    }
+
+    // ============================================================
+    //  UTILS
+    // ============================================================
+    function resetForm(ids) {
+      ids.forEach(id => { document.getElementById(id).value = ''; });
+    }
+  </script>
+</body>
+</html>
